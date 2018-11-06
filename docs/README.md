@@ -173,8 +173,7 @@ interpreter installed on your server.
 
 ## Third-party Libraries
 
-* See [lib/pkp/lib/libraries.txt](../lib/pkp/lib/libraries.txt) for a list of third-party libraries
-	used by OJS.
+* See [lib/pkp/lib/libraries.txt](https://github.com/pkp/pkp-lib/blob/master/lib/libraries.txt) for a list of third-party libraries used by OJS.
 
 * OJS supports the legacy GeoLiteCite database to approximate geolocation
 	information for usage statistics. If you would like to use this optional
