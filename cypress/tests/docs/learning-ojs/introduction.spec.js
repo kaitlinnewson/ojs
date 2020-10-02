@@ -9,6 +9,9 @@
 
 describe('Documentation suite tests', function() {
 	it('Generates screenshots for the Introduction Chapter', function() {
-    
+        // Login as an admin user
+        cy.login('admin', 'admin');
+        cy.get('a[id^="pkpDropdown1"]').click();
+        cy.screenshot('learning-ojs-3-ojs3-interface.png', {capture: 'viewport'});
     })
 })
