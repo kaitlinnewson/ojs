@@ -8,7 +8,7 @@ on:
 name: ojs-main
 jobs:
   ojs:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os || 'ubuntu-latest' }}
     strategy:
       fail-fast: false
       matrix:
@@ -36,6 +36,10 @@ jobs:
           - php-version: 8.3
             database: pgsql
             test: 'test'
+          - php-version: 8.3
+            database: pgsql
+            test: 'test'
+            os: ubuntu-26.04
     name: ojs-main
     steps:
       - uses: kaitlinnewson/pkp-github-actions@postgres-stalls
