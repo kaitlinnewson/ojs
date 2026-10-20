@@ -4,7 +4,7 @@ on:
       - '*'
 name: ojs-main
 jobs:
-  ojs-v1-26.04:
+  ojs-v1:
     runs-on: ubuntu-26.04
     strategy:
       fail-fast: false
@@ -45,7 +45,7 @@ jobs:
           dataset_branch: 'main'
           DEBUG_IN_TMATE: false
 
-  ojs-pr103-26.04:
+  ojs-pr103:
     runs-on: ubuntu-26.04
     strategy:
       fail-fast: false
