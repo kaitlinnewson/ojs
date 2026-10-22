@@ -49,7 +49,7 @@ jobs:
 
     name: ojs
     steps:
-      - uses: pkp/pkp-github-actions@v1
+      - uses: kaitlinnewson/pkp-github-actions@electron-integration-test
         with:
           node_version: 12
           dataset_branch: 'stable-3_3_0'
