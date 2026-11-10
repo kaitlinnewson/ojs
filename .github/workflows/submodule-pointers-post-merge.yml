@@ -32,7 +32,7 @@ jobs:
             url=$(git config -f .gitmodules --get "submodule.$name.url")
             branch=$(git config -f .gitmodules --get "submodule.$name.branch" || echo "$default_branch")
             dir=$(mktemp -d)
-            if git clone -q --filter=blob:none --no-checkout --single-branch --branch "$branch" "$url" "$dir" 2>/dev/null \
+            if git clone -q --filter=tree:0 --no-checkout --single-branch --branch "$branch" "$url" "$dir" \
               && git -C "$dir" merge-base --is-ancestor "$sha" "origin/$branch" 2>/dev/null; then
               echo "OK: $path $sha is on $branch"
               continue
