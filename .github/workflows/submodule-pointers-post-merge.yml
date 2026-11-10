@@ -1,0 +1,53 @@
+on:
+  push:
+    branches:
+      - main
+      - 'stable-*'
+      - 'submodule-check-*' # fork testing only
+name: submodule-pointers-post-merge
+permissions:
+  contents: read
+  pull-requests: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: blob:none
+      - name: Check that all submodule commits are on the matching branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APP_REF: ${{ github.ref_name }}
+        run: |
+          case "$APP_REF" in
+            stable-*) default_branch=$APP_REF ;;
+            *) default_branch=main ;;
+          esac
+          status=0
+          while read -r _ type sha path; do
+            [ "$type" = "commit" ] || continue
+            name=$(git config -f .gitmodules --get-regexp '^submodule\..*\.path$' | awk -v p="$path" '$2==p{sub(/^submodule\./,"",$1); sub(/\.path$/,"",$1); print $1}')
+            url=$(git config -f .gitmodules --get "submodule.$name.url")
+            branch=$(git config -f .gitmodules --get "submodule.$name.branch" || echo "$default_branch")
+            dir=$(mktemp -d)
+            if git clone -q --filter=tree:0 --no-checkout --single-branch --branch "$branch" "$url" "$dir" \
+              && git -C "$dir" merge-base --is-ancestor "$sha" "origin/$branch" 2>/dev/null; then
+              echo "OK: $path $sha is on $branch"
+              continue
+            fi
+            status=1
+            commit=$(git log -1 --format=%H -- "$path")
+            pr=$(gh api "repos/$GITHUB_REPOSITORY/commits/$commit/pulls" --jq "[.[] | select(.merged_at != null and .base.ref == \"$APP_REF\")][0].number // empty" 2>/dev/null || true)
+            if [ -n "$pr" ]; then
+              merger=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$pr" --jq '.merged_by.login // "unknown"')
+              source="set by PR #$pr (merged by $merger)"
+            else
+              source="set by commit $commit ($(git log -1 --format='%an' "$commit"))"
+            fi
+            msg="$path points at $sha, which is not on the $branch branch of $url; $source. If the submodule PR was squashed or rebased, update the submodule to the merged commit."
+            echo "::error::$msg"
+            echo "- $msg" >> "$GITHUB_STEP_SUMMARY"
+          done < <(git ls-tree -r HEAD)
+          exit $status
