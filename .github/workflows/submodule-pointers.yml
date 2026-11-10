@@ -1,0 +1,27 @@
+on:
+  pull_request:
+name: submodule-pointers
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Check that changed submodule commits are on a branch
+        run: |
+          status=0
+          while read -r _ mode _ sha _ path; do
+            [ "$mode" = "160000" ] || continue
+            name=$(git config -f .gitmodules --get-regexp '^submodule\..*\.path$' | awk -v p="$path" '$2==p{sub(/^submodule\./,"",$1); sub(/\.path$/,"",$1); print $1}')
+            url=$(git config -f .gitmodules --get "submodule.$name.url")
+            dir=$(mktemp -d)
+            git clone -q --filter=blob:none --no-checkout "$url" "$dir"
+            if branches=$(git -C "$dir" branch -r --contains "$sha" 2>/dev/null) && [ -n "$branches" ]; then
+              echo "OK: $path $sha is on $(echo $branches)"
+            else
+              echo "::error::$path points at $sha, which is not on any branch of $url. Merge the submodule PR first, and if it was squashed or rebased, update the submodule to the merged commit."
+              status=1
+            fi
+          done < <(git diff --raw HEAD^1 HEAD)
+          exit $status
