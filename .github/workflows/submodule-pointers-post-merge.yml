@@ -4,8 +4,6 @@ on:
       - main
       - 'stable-*'
       - 'submodule-check-*' # fork testing only
-  schedule:
-    - cron: '0 9 * * *'
 name: submodule-pointers-post-merge
 permissions:
   contents: read
@@ -13,21 +11,15 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        ref: ${{ github.event_name == 'schedule' && fromJSON('["main","stable-3_5_0","stable-3_4_0","stable-3_3_0"]') || fromJSON(format('["{0}"]', github.ref_name)) }}
-    name: check (${{ matrix.ref }})
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ matrix.ref }}
           fetch-depth: 0
           filter: blob:none
       - name: Check that all submodule commits are on the matching branch
         env:
           GH_TOKEN: ${{ github.token }}
-          APP_REF: ${{ matrix.ref }}
+          APP_REF: ${{ github.ref_name }}
         run: |
           case "$APP_REF" in
             stable-*) default_branch=$APP_REF ;;
@@ -39,12 +31,18 @@ jobs:
             name=$(git config -f .gitmodules --get-regexp '^submodule\..*\.path$' | awk -v p="$path" '$2==p{sub(/^submodule\./,"",$1); sub(/\.path$/,"",$1); print $1}')
             url=$(git config -f .gitmodules --get "submodule.$name.url")
             branch=$(git config -f .gitmodules --get "submodule.$name.branch" || echo "$default_branch")
-            dir=$(mktemp -d)
-            if git clone -q --filter=blob:none --no-checkout --single-branch --branch "$branch" "$url" "$dir" 2>/dev/null \
-              && git -C "$dir" merge-base --is-ancestor "$sha" "origin/$branch" 2>/dev/null; then
+            repo=$(echo "$url" | sed -E 's#^(https://github\.com/|git@github\.com:)##; s#\.git$##')
+            if [ "$repo" = "$url" ]; then
+              echo "::error::$path uses $url, which is not a GitHub repository"
+              status=1
+              continue
+            fi
+            compare=$(gh api "repos/$repo/compare/$branch...$sha" --jq .status 2>&1 || true)
+            if [ "$compare" = "behind" ] || [ "$compare" = "identical" ]; then
               echo "OK: $path $sha is on $branch"
               continue
             fi
+            echo "$path: compare $branch...$sha returned: $compare"
             status=1
             commit=$(git log -1 --format=%H -- "$path")
             pr=$(gh api "repos/$GITHUB_REPOSITORY/commits/$commit/pulls" --jq "[.[] | select(.merged_at != null and .base.ref == \"$APP_REF\")][0].number // empty" 2>/dev/null || true)

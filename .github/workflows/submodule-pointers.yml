@@ -23,5 +23,5 @@ jobs:
               echo "::error::$path points at $sha, which is not on any branch of $url. Merge the submodule PR first, and if it was squashed or rebased, update the submodule to the merged commit."
               status=1
             fi
-          done < <(git diff --raw HEAD^1 HEAD)
+          done < <(git diff --raw --no-abbrev HEAD^1 HEAD)
           exit $status
